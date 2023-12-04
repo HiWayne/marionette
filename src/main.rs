@@ -30,6 +30,10 @@ async fn main() {
             get(screen::controller::get_screen_info_controller),
         )
         .route(
+            "/api/screen/graphic",
+            get(screen::controller::get_screen_graphic_controller),
+        )
+        .route(
             "/api/mouse/move",
             post(mouse_move::controller::mouse_move_controller),
         );
