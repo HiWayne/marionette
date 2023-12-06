@@ -1,8 +1,7 @@
 use axum::{
     body::Body,
-    debug_handler,
     http::{header, StatusCode},
-    response::{IntoResponse, Response},
+    response::IntoResponse,
     Json,
 };
 
@@ -35,6 +34,7 @@ pub async fn get_screen_info_controller() -> (StatusCode, Json<ScreenResponseInf
 }
 
 pub async fn get_screen_graphic_controller() -> impl IntoResponse {
+    println!("000");
     let result = get_screen_graphic_service().await;
     match result {
         Ok(image_array_buffer) => (

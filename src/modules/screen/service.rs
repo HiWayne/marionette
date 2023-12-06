@@ -2,7 +2,8 @@ extern crate scrap;
 use scrap::{Capturer, Display};
 use serde::{Deserialize, Serialize};
 use std::io::ErrorKind::WouldBlock;
-use tokio::time::{sleep, Duration};
+use std::thread::sleep;
+use tokio::time::Duration;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ScreenInfo {
@@ -29,25 +30,30 @@ pub fn get_screen_info_service() -> Result<ScreenInfo, &'static str> {
 }
 
 pub async fn get_screen_graphic_service<'a>() -> Result<Vec<u8>, &'static str> {
+    println!("111");
     let one_second = Duration::from_secs(1);
     let one_frame = one_second / 60;
 
     let display = Display::primary().expect("Couldn't find primary display.");
     let mut capturer = Capturer::new(display).expect("Couldn't begin capture.");
     let (w, h) = (capturer.width(), capturer.height());
-    print!("w: {}, h: {}", w, h);
+    println!("w: {}, h: {}", w, h);
     loop {
         // Wait until there's a frame.
 
         let buffer = match capturer.frame() {
-            Ok(buffer) => buffer,
+            Ok(buffer) => {
+                println!("222");
+                buffer
+            }
             Err(error) => {
+                println!("333");
                 if error.kind() == WouldBlock {
                     // Keep spinning.
-                    sleep(one_frame).await;
+                    sleep(one_frame);
                     continue;
                 } else {
-                    return Err("123");
+                    return Err("capturer frame error");
                 }
             }
         };
@@ -64,6 +70,7 @@ pub async fn get_screen_graphic_service<'a>() -> Result<Vec<u8>, &'static str> {
         //     }
         // }
 
+        println!("444");
         return Ok(buffer.to_vec());
     }
 }
