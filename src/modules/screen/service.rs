@@ -1,9 +1,11 @@
 extern crate scrap;
+use ndarray::Array3;
 use scrap::{Capturer, Display};
 use serde::{Deserialize, Serialize};
 use std::io::ErrorKind::WouldBlock;
 use std::thread::sleep;
 use tokio::time::Duration;
+use video_rs::{Encoder, Time};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ScreenInfo {
@@ -30,24 +32,17 @@ pub fn get_screen_info_service() -> Result<ScreenInfo, &'static str> {
 }
 
 pub async fn get_screen_graphic_service<'a>() -> Result<Vec<u8>, &'static str> {
-    println!("111");
     let one_second = Duration::from_secs(1);
     let one_frame = one_second / 60;
 
     let display = Display::primary().expect("Couldn't find primary display.");
     let mut capturer = Capturer::new(display).expect("Couldn't begin capture.");
-    let (w, h) = (capturer.width(), capturer.height());
-    println!("w: {}, h: {}", w, h);
     loop {
         // Wait until there's a frame.
 
         let buffer = match capturer.frame() {
-            Ok(buffer) => {
-                println!("222");
-                buffer
-            }
+            Ok(buffer) => buffer,
             Err(error) => {
-                println!("333");
                 if error.kind() == WouldBlock {
                     // Keep spinning.
                     sleep(one_frame);
@@ -69,8 +64,37 @@ pub async fn get_screen_graphic_service<'a>() -> Result<Vec<u8>, &'static str> {
         //         bitflipped.extend_from_slice(&[buffer[i + 2], buffer[i + 1], buffer[i], 255]);
         //     }
         // }
-
-        println!("444");
-        return Ok(buffer.to_vec());
+        let vec = buffer.to_vec();
+        return Ok(vec);
     }
+}
+
+pub fn create_video_service(
+    encoder: &mut Encoder,
+    position: Time,
+    duration: &Time,
+    image_buffer: &Vec<u8>,
+    width: usize,
+    height: usize,
+) -> Time {
+    // This creates a frame with height 1080, width 1920 and three
+    // channels. The RGB values for each pixel are equal, and
+    // determined by the `rgb` we chose above.
+    let frame = Array3::from_shape_fn((height, width, 3), |(y, x, c)| {
+        let color_result = image_buffer.get(x * 3 + y * width * 3 + c);
+        if let Some(color) = color_result {
+            return *color;
+        } else {
+            println!("invalid color");
+            return 0;
+        }
+    });
+
+    encoder
+        .encode(&frame, &position)
+        .expect("failed to encode frame");
+
+    // Update the current position and add the inter-frame
+    // duration to it.
+    return position.aligned_with(duration).add();
 }

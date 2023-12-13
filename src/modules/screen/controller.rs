@@ -34,18 +34,23 @@ pub async fn get_screen_info_controller() -> (StatusCode, Json<ScreenResponseInf
 }
 
 pub async fn get_screen_graphic_controller() -> impl IntoResponse {
-    println!("000");
     let result = get_screen_graphic_service().await;
     match result {
-        Ok(image_array_buffer) => (
-            StatusCode::OK,
-            [(header::CONTENT_TYPE, "image/png")],
-            Body::from(image_array_buffer),
-        ),
-        Err(error_message) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            [(header::CONTENT_TYPE, "text/plain")],
-            Body::from(error_message),
-        ),
+        Ok(image_array_buffer) => {
+            println!("444, ok, {}", image_array_buffer.len());
+            return (
+                StatusCode::OK,
+                [(header::CONTENT_TYPE, "image/png")],
+                Body::from(image_array_buffer),
+            );
+        }
+        Err(error_message) => {
+            println!("444, err");
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                [(header::CONTENT_TYPE, "text/plain")],
+                Body::from(error_message),
+            );
+        }
     }
 }
