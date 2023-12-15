@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use axum::{
     body::Body,
     http::{header, StatusCode},
@@ -5,10 +7,12 @@ use axum::{
     Json,
 };
 
-use super::service::{get_screen_graphic_service, get_screen_info_service, ScreenResponseInfo};
+use crate::utils::{get_screen_size::get_screen_size, screen_capturer::ScreenCapturer};
+
+use super::service::{get_screen_graphic_service, ScreenResponseInfo};
 
 pub async fn get_screen_info_controller() -> (StatusCode, Json<ScreenResponseInfo>) {
-    let result = get_screen_info_service();
+    let result = get_screen_size();
     match result {
         Ok(data) => {
             return (
@@ -34,7 +38,10 @@ pub async fn get_screen_info_controller() -> (StatusCode, Json<ScreenResponseInf
 }
 
 pub async fn get_screen_graphic_controller() -> impl IntoResponse {
-    let result = get_screen_graphic_service().await;
+    let one_second = Duration::from_secs(1);
+    let frame_speed = one_second / 60;
+    let mut screen_capturer = ScreenCapturer::new(frame_speed);
+    let result = get_screen_graphic_service(&mut screen_capturer);
     match result {
         Ok(image_array_buffer) => {
             println!("444, ok, {}", image_array_buffer.len());

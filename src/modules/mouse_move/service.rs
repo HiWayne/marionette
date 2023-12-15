@@ -1,6 +1,7 @@
-use crate::modules::screen::service::get_screen_info_service;
 use enigo::*;
 use serde::{Deserialize, Serialize};
+
+use crate::utils::get_screen_size::get_screen_size;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MousePosition {
@@ -9,7 +10,7 @@ pub struct MousePosition {
 }
 
 pub async fn mouse_move_service(mouse_position: MousePosition) -> bool {
-    let screen_info_result = get_screen_info_service();
+    let screen_info_result = get_screen_size();
     match screen_info_result {
         Ok(screen_info) => {
             let mut enigo = Enigo::new();

@@ -7,10 +7,12 @@ use std::thread::sleep;
 use tokio::time::Duration;
 use video_rs::{Encoder, Time};
 
+use crate::utils::screen_capturer::{self, ScreenCapturer};
+
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ScreenInfo {
-    pub width: u32,
-    pub height: u32,
+    pub width: usize,
+    pub height: usize,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -20,32 +22,23 @@ pub struct ScreenResponseInfo {
     pub message: &'static str,
 }
 
-pub fn get_screen_info_service() -> Result<ScreenInfo, &'static str> {
-    let display_result = Display::primary();
-    if let Ok(display) = display_result {
-        return Ok(ScreenInfo {
-            width: display.width() as u32,
-            height: display.height() as u32,
-        });
-    }
-    Err("capture screen size error")
-}
-
-pub async fn get_screen_graphic_service<'a>() -> Result<Vec<u8>, &'static str> {
-    let one_second = Duration::from_secs(1);
-    let one_frame = one_second / 60;
-
-    let display = Display::primary().expect("Couldn't find primary display.");
-    let mut capturer = Capturer::new(display).expect("Couldn't begin capture.");
+pub fn get_screen_graphic_service<'a>(
+    screen_capturer: &mut ScreenCapturer,
+) -> Result<Vec<u8>, &'static str> {
+    let (capturer, frame_speed, width, height) = (
+        &mut screen_capturer.capturer,
+        screen_capturer.frame_speed,
+        screen_capturer.width,
+        screen_capturer.height,
+    );
     loop {
         // Wait until there's a frame.
-
         let buffer = match capturer.frame() {
             Ok(buffer) => buffer,
             Err(error) => {
                 if error.kind() == WouldBlock {
                     // Keep spinning.
-                    sleep(one_frame);
+                    sleep(frame_speed);
                     continue;
                 } else {
                     return Err("capturer frame error");
@@ -53,23 +46,22 @@ pub async fn get_screen_graphic_service<'a>() -> Result<Vec<u8>, &'static str> {
             }
         };
 
-        // Flip the ARGB image into a BGRA image.
+        // Flip the ARGB image into a RGB image.
 
-        // let mut bitflipped = Vec::with_capacity(w * h * 4);
-        // let stride = buffer.len() / h;
+        let mut bitflipped = Vec::with_capacity(width * height * 3);
+        let stride = buffer.len() / height;
 
-        // for y in 0..h {
-        //     for x in 0..w {
-        //         let i = stride * y + 4 * x;
-        //         bitflipped.extend_from_slice(&[buffer[i + 2], buffer[i + 1], buffer[i], 255]);
-        //     }
-        // }
-        let vec = buffer.to_vec();
-        return Ok(vec);
+        for y in 0..height {
+            for x in 0..width {
+                let i = stride * y + 4 * x;
+                bitflipped.extend_from_slice(&[buffer[i + 2], buffer[i + 1], buffer[i]]);
+            }
+        }
+        return Ok(bitflipped);
     }
 }
 
-pub fn create_video_service(
+pub fn add_frame_to_video_service(
     encoder: &mut Encoder,
     position: Time,
     duration: &Time,

@@ -18,6 +18,12 @@ pub mod modules {
     }
 }
 
+pub mod utils {
+    pub mod get_screen_size;
+    pub mod screen_capturer;
+    pub mod video_generator;
+}
+
 // use modules::{app, mouse_move, screen};
 
 // #[tokio::main]
@@ -42,41 +48,34 @@ pub mod modules {
 //     axum::serve(listener, app).await.unwrap();
 // }
 
-use std::path::PathBuf;
-
-use modules::screen::service::{
-    create_video_service, get_screen_graphic_service, get_screen_info_service,
-};
-use video_rs::{Encoder, EncoderSettings, Locator, Time};
+use modules::screen::service::{add_frame_to_video_service, get_screen_graphic_service};
+use tokio::time::Duration;
+use utils::{screen_capturer::ScreenCapturer, video_generator::VideoGenerator};
 
 #[tokio::main]
 async fn main() {
-    let screen_info = get_screen_info_service().unwrap();
-    video_rs::init().unwrap();
-    let destination: Locator = PathBuf::from("rainbow.mp4").into();
-    let settings = EncoderSettings::for_h264_yuv420p(
-        screen_info.width as usize,
-        screen_info.height as usize,
-        false,
-    );
-    let mut encoder = Encoder::new(&destination, settings).expect("failed to create encoder");
-    let duration: Time = Time::from_nth_of_a_second(60);
-    let mut position = Time::zero();
+    let mut video_generator = VideoGenerator::new("rainbow.mp4");
+    let one_second = Duration::from_secs(1);
+    let frame_speed = one_second / 24;
+    let mut screen_capturer = ScreenCapturer::new(frame_speed);
     let mut frame_count = 0;
     loop {
-        if frame_count > 24 {
+        if frame_count > 72 {
             break;
         }
-        let image_buffer = get_screen_graphic_service().await.unwrap();
-        position = create_video_service(
-            &mut encoder,
-            position,
-            &duration,
+        let image_buffer = get_screen_graphic_service(&mut screen_capturer).unwrap();
+        video_generator.position = add_frame_to_video_service(
+            &mut video_generator.encoder,
+            video_generator.position,
+            &video_generator.duration,
             &image_buffer,
-            screen_info.width as usize,
-            screen_info.height as usize,
+            video_generator.width as usize,
+            video_generator.height as usize,
         );
         frame_count += 1;
     }
-    encoder.finish().expect("failed to finish encoder");
+    video_generator
+        .encoder
+        .finish()
+        .expect("failed to finish encoder");
 }
