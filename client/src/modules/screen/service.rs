@@ -1,13 +1,10 @@
 extern crate scrap;
-use ndarray::Array3;
-use scrap::{Capturer, Display};
 use serde::{Deserialize, Serialize};
 use std::io::ErrorKind::WouldBlock;
 use std::thread::sleep;
-use tokio::time::Duration;
-use video_rs::{Encoder, Time};
 
-use crate::utils::screen_capturer::{self, ScreenCapturer};
+use crate::utils::screen_capturer::ScreenCapturer;
+use crate::utils::screen_recorder::{ScreenRecorder, ScreenRecorderParams};
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ScreenInfo {
@@ -61,32 +58,11 @@ pub fn get_screen_graphic_service<'a>(
     }
 }
 
-pub fn add_frame_to_video_service(
-    encoder: &mut Encoder,
-    position: Time,
-    duration: &Time,
-    image_buffer: &Vec<u8>,
-    width: usize,
-    height: usize,
-) -> Time {
-    // This creates a frame with height 1080, width 1920 and three
-    // channels. The RGB values for each pixel are equal, and
-    // determined by the `rgb` we chose above.
-    let frame = Array3::from_shape_fn((height, width, 3), |(y, x, c)| {
-        let color_result = image_buffer.get(x * 3 + y * width * 3 + c);
-        if let Some(color) = color_result {
-            return *color;
-        } else {
-            println!("invalid color");
-            return 0;
-        }
+pub async fn start_recording_screen(unique_number: &'static str) {
+    let mut screen_recorder = ScreenRecorder::new(ScreenRecorderParams {
+        input_width: None,
+        frame_rate: None,
+        unique_number
     });
-
-    encoder
-        .encode(&frame, &position)
-        .expect("failed to encode frame");
-
-    // Update the current position and add the inter-frame
-    // duration to it.
-    return position.aligned_with(duration).add();
+    screen_recorder.start().await;
 }
